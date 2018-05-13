@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun May  6 12:18:47 2018
+
+@author: miri-o
+"""
+
+from Bio.Seq import Seq
+from Bio.Alphabet import IUPAC
+import os
+import pandas as pd
+import biovec
+import time
+
+## create a CDR3 (junction) dataset from Ceilac DB (100 patients)
+## The directory contains 100make db files of 3 types - "CD", "HC", "Biotech" - 
+#need tp translate using a key
+
+    
+directory = '/media/miri-o/Documents/celiac_100_makedb/'
+newfile = open('/media/miri-o/Documents/fasta_files/CDR3_celiac_db.fa', 'w') 
+i = 0
+for filename in os.listdir(directory):
+    fil = pd.read_csv(directory+filename,sep = '\t')
+    fil  = fil[fil['FUNCTIONAL']=='T']
+    fil = fil[fil['CONSCOUNT']>1]
+    print('Adding file: ' + filename + '...')
+    for junc in fil['JUNCTION']:
+        if (len(junc)%3==0) and (len(junc))>12 and ('N' not in junc) and ('-' not in junc):
+            newfile.write('>'+str(i)+ ' CDR3\n')
+            coding_dna = Seq(junc, IUPAC.unambiguous_dna)
+            newfile.write(str(coding_dna.translate())[2:-1]+'\n')
+            i+=1
+            
+print('Total number of sequences after filtering: ' + str(i))            
+newfile.close() 
+
+t0 = time.time()
+model_name = 'CDR3_model_Celiac_based_20180506.txt'
+models_dir = '/media/miri-o/Documents/trained_models/'
+
+trained_model = biovec.ProtVec('/media/miri-o/Documents/fasta_files/CDR3_celiac_db.fa', out=model_name)
+trained_model.save(models_dir+model_name)
+
+t1 = time.time()-t0
+print('model training finished in ' + str(t1/60) + ' minutes, model saved to: \n' + models_dir+model_name)
+

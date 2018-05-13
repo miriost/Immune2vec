@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon May  7 16:54:47 2018
+
+@author: miri-o
+"""
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+from sklearn.manifold import TSNE
+import statistics
+import re
+import random
+
+path = '/media/miri-o/Documents/'
+import biovec
+CDR3_cropped_model = biovec.models.load_protvec(path+'trained_models/CDR3_model_Celiac_based_20180506.txt')
+infile = pd.read_csv(path+'CDR3_properties_HCV.csv')
+infile.head()
+
+infile['CONDITION'] = [re.split('\d', condition)[0] for condition in infile['SUBJECT']]
+conditions = infile['CONDITION'].unique()
+
+cropper = lambda x: str(x)[2:-1]
+infile['JUNC_AA'] = infile['JUNC_AA'].apply(cropper)
+
+n = 50000
+np.random.seed(0)
+random_indexes = np.random.choice(len(infile['CONDITION']),n)    
+
+# Make a new data frame with the smapled data
+subdata = {'Original_index':random_indexes, 
+           'JUNC_AA' : infile['JUNC_AA'][random_indexes], 
+           'CONDITION': infile['CONDITION'][random_indexes],
+          'SUBJECT':infile['SUBJECT'][random_indexes]}
+
+randvectors_word2vec = np.zeros((n,100))
+to_drop = []
+index = 0
+for i in range(n) :
+    word = subdata['JUNC_AA'].iloc[i]
+    try:
+        randvectors_word2vec[i] = list(CDR3_cropped_model.to_vecs(word)[0])
+    except:
+        try:
+            subdata['Original_index'][i] = np.random.choice(len(infile['CONDITION']))
+            subdata['JUNC_AA'].iloc[i]  = infile['JUNC_AA'][subdata['Original_index'][i]]
+            subdata['CONDITION'].iloc[i] = infile['CONDITION'][subdata['Original_index'][i]]
+            word = subdata['JUNC_AA'].iloc[i]
+            randvectors_word2vec[i] = list(CDR3_cropped_model.to_vecs(word)[0])
+        except:
+            randvectors_word2vec[i] = np.nan
+            to_drop.append(i)
+            print(str(i) + 'index not valid')
+
+randvectors_word2vec = np.delete(randvectors_word2vec, to_drop, 0)
