@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun May 13 11:17:12 2018
+
+@author: miri-o
+"""
+
+import pandas as pd
+import numpy as np
+from sklearn import tree
+import matplotlib
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LogisticRegression
+from sklearn import svm
+from sklearn.preprocessing import StandardScaler
+import statsmodels.formula.api as smf
+import statsmodels.api as sm
+from mpl_toolkits.mplot3d import Axes3D
+import seaborn as sns
+from sklearn import neighbors
+from sklearn import linear_model
+from sklearn.decomposition import PCA
+from sklearn.linear_model import LassoCV, Lasso
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+import itertools
+from sklearn.metrics import confusion_matrix, accuracy_score
+
+
+def testtrainPCA(data, labels):
+    x_train, x_test, y_train, y_test = train_test_split(data, labels, 
+                                                        test_size = .3, 
+                                                        random_state = 0)
+    #Standardize the Data:
+    x_train = StandardScaler().fit_transform(x_train)
+    x_test = StandardScaler().fit_transform(x_test)
+
+    # Apply the PCA
+    pca = PCA(n_components=30)
+    pca.fit(x_train)
+    x_train = pca.transform(x_train)
+    x_test = pca.transform(x_test)
+    
+    return x_train, x_test, list(y_train), list(y_test)
+
+
+def plotPCAnumberoffeatures(x_train):
+    x = np.arange(.05,1.0,.05)
+    y = np.zeros_like(x)
+    for i, val in enumerate(x):
+        pca = PCA(val)
+        pca.fit(x_train)
+        y[i] = pca.n_components_
+        print('Explained varience: {}, Number of features: {}'.format(val, y[i]))
+        
+    plt.plot(100*x,y,'o-')    
+    plt.xlim(0, 100, 1)
+    plt.xlabel('Explained varience')
+    plt.ylabel('Number of features')
+    plt.title('#PCA of selected features')
+    plt.show()
+
+def plot_confusion_matrix(cm, classes,
+                          normalize=False,
+                          title='Confusion matrix',
+                          cmap=plt.cm.Blues):
+    """
+    This function prints and plots the confusion matrix.
+    Normalization can be applied by setting `normalize=True`.
+    """
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        print("Normalized confusion matrix")
+    else:
+        print('Confusion matrix, without normalization')
+
+    print(cm)
+
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+
+    fmt = '.2f' if normalize else 'd'
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, format(cm[i, j], fmt),
+                 horizontalalignment="center",
+                 color="white" if cm[i, j] > thresh else "black")
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    
+    
+def doLogisticRegression(x_train, x_test, y_yrain, y_test):
+    logmodel = LogisticRegression(C=1.0, class_weight='balanced', dual=False, fit_intercept=True,
+                   intercept_scaling=1, max_iter=100, multi_class='ovr', n_jobs=1,
+                   penalty='l2', random_state=None, solver='liblinear', tol=0.0001,
+                   verbose=0, warm_start=True)   
+    logmodel.fit(x_train, y_train)
+    y_predicted = logmodel.predict(x_test)
+    #print('Logistic regression score: ' + str(logmodel.score(x_test, y_test)))
+    cnf_matrix = confusion_matrix(y_test, y_predicted)
+    np.set_printoptions(precision=2)
+    plt.figure()
+    plot_confusion_matrix(cnf_matrix, classes=['HC', 'CD'], normalize=True,
+                      title='Logistic regresseion Normalized confusion matrix')
+    plt.show()
+    print('score: ' + str(accuracy_score(y_test, y_predicted)))
+    
+
+def calcerror(predict, test):
+    error = 0
+    for i in range(len(test)):
+        try:
+            error += (abs(test[i] - predict[i]) / test[i])
+        except Exception:
+            print("failed at iteration " + i)
+            pass
+            raise
+    return error / len(test) * 100
+
+def randomscore(df):
+    #x_train, x_test, y_train, y_test = createtesttrain(df, features, 6)
+    test_error = calcerror(np.random.normal(df['imdb_score'].mean(), df['imdb_score'].var(), len(df['imdb_score'])+1), list(df['imdb_score']))
+    print("Test error = "'{}'.format(test_error) + " percent in Random scores\n")
+    return test_error
+
+
+def doRidgeRegression(x_train, x_test, y_yrain, y_test):
+    model = linear_model.Ridge()
+    model.fit(x_train, y_train)
+
+    model.fit(x_train, y_train)
+    y_predicted = model.predict(x_test)
+    #print('Logistic regression score: ' + str(logmodel.score(x_test, y_test)))
+    cnf_matrix = confusion_matrix(y_test, y_predicted)
+    np.set_printoptions(precision=2)
+    plt.figure()
+    plot_confusion_matrix(cnf_matrix, classes=['HC', 'CD'], normalize=True,
+                      title='Ridge regresseion Normalized confusion matrix')
+    plt.show()
+    print('score: ' + str(accuracy_score(y_test, y_predicted)))
+
+
+def doKnnRegression(x_train, x_test, y_yrain, y_test, n_neighbors):
+    model = neighbors.KNeighborsRegressor(n_neighbors, weights='uniform')
+    model.fit(x_train, y_train)
+
+    model.fit(x_train, y_train)
+    y_predicted = model.predict(x_test)
+    #print('Logistic regression score: ' + str(logmodel.score(x_test, y_test)))
+    cnf_matrix = confusion_matrix(y_test, y_predicted)
+    np.set_printoptions(precision=2)
+    plt.figure()
+    plot_confusion_matrix(cnf_matrix, classes=['HC', 'CD'], normalize=True,
+                      title='KNN regresseion Normalized confusion matrix')
+    plt.show()
+    print('score: ' + str(accuracy_score(y_test, y_predicted)))
+
+
+def doBayesianRegression(df, features):
+    x_train, x_test, y_train, y_test = createtesttrain(df, features, 6)
+    model = linear_model.BayesianRidge()
+    model.fit(x_train, y_train)
+
+    y_predict = model.predict(x_train)
+    train_error = calcerror(y_predict, y_train)
+    print("Train error = "'{}'.format(train_error) + " percent in Bayesian Regression")
+
+    prediction = model.predict(x_test)
+    test_error = calcerror(prediction, y_test)
+    print("Test error = "'{}'.format(test_error) + " percent in Bayesian Regression\n")
+    return train_error, test_error
+
+
+def doDecisionTreeRegression(df, features):
+    x_train, x_test, y_train, y_test = createtesttrain(df, features, 6)
+    model = tree.DecisionTreeRegressor(max_depth=1)
+    model.fit(x_train, y_train)
+
+    y_predict = model.predict(x_train)
+    train_error = calcerror(y_predict, y_train)
+    print("Train error = "'{}'.format(train_error) + " percent in Decision Tree  Regression")
+
+    prediction = model.predict(x_test)
+    test_error = calcerror(prediction, y_test)
+    print("Test error = "'{}'.format(test_error) + " percent in Decision Tree  Regression\n")
+    return train_error, test_error
+
+
+def doSvmRegression(x_train, x_test, y_train, y_test):
+    model = svm.SVR()
+
+    model.fit(x_train, y_train)
+    y_predicted = model.predict(x_test)
+    #print('Logistic regression score: ' + str(logmodel.score(x_test, y_test)))
+    cnf_matrix = confusion_matrix(y_test, y_predicted)
+    np.set_printoptions(precision=2)
+    plt.figure()
+    plot_confusion_matrix(cnf_matrix, classes=['HC', 'CD'], normalize=True,
+                      title='SVM regresseion Normalized confusion matrix')
+    plt.show()
+
+
+
+
+if __name__ == '__main__':
+    path = '/media/miri-o/Documents/'
+    vectors = pd.read_csv(path+'Celiac_vectors_2969380x100.csv')
+    sequences = pd.read_csv(path+'CDR3_from_Celiac_full.csv2018-05-10-1226', sep='\t')
+    x_train, x_test, y_train, y_test = testtrainPCA(vectors, sequences.CONDITION)
+    #plotPCAnumberoffeatures(x_train)
+    #doLogisticRegression(x_train, x_test, y_train, y_test)
+    #doRidgeRegression(x_train, x_test, y_train, y_test)
+    doKnnRegression(x_train, x_test, y_train, y_test, 3)
+    doSvmRegression(x_train, x_test, y_train, y_test)
+    
